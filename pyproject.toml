@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "oidc-auth-sentry"
-version = "0.1.0"
+version = "0.1.1"
 description = "Generic OpenID Connect SSO provider for self-hosted Sentry (Cognito-ready)"
 authors = [{ name = "Cristiano", email = "cristiano@linvix.com.br" }]
 requires-python = ">=3.11,<4"

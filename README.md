@@ -46,8 +46,8 @@ Os valores que você vai usar:
 | --------------- | ------------------------------------------- | -------------------------------------------------------------- |
 | `client-id`     | App client                                  | `7exampleabc123`                                               |
 | `client-secret` | App client                                  | `abcd...`                                                      |
-| `authorize-url` | Domínio Hosted UI + `/oauth2/authorize`     | `https://id.example.com/oauth2/authorize`                       |
-| `token-url`     | Domínio Hosted UI + `/oauth2/token`         | `https://id.example.com/oauth2/token`                           |
+| `authorize-url` | Domínio Hosted UI + `/oauth2/authorize`     | `https://id.example.com/oauth2/authorize`                      |
+| `token-url`     | Domínio Hosted UI + `/oauth2/token`         | `https://id.example.com/oauth2/token`                          |
 | `issuer`        | `cognito-idp.<regiao>.amazonaws.com/<pool>` | `https://cognito-idp.us-east-1.amazonaws.com/us-east-1_ABC123` |
 
 > Dica: confira o discovery em
@@ -61,7 +61,7 @@ No seu checkout do `getsentry/self-hosted`, adicione o pacote em
 `sentry/requirements.txt`:
 
 ```
-oidc-auth-sentry==0.1.0
+oidc-auth-sentry==0.1.1
 ```
 
 Se o pacote estiver num índice privado (ex.: AWS CodeArtifact), exporte as
@@ -103,6 +103,24 @@ docker compose run --rm web sentry config set auth-oidc.client-secret "SEU_CLIEN
 docker compose run --rm web sentry config set auth-oidc.authorize-url "https://id.example.com/oauth2/authorize"
 docker compose run --rm web sentry config set auth-oidc.token-url "https://id.example.com/oauth2/token"
 docker compose run --rm web sentry config set auth-oidc.issuer "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_ABC123"
+```
+
+#### Opcional — claims do nome de exibição
+
+O nome de exibição do usuário é resolvido a partir de uma lista ordenada de
+claims do `id_token` — o primeiro presente e não-vazio vence, com o `email`
+como fallback final. O padrão segue os claims OIDC padrão:
+
+```
+name,preferred_username,email
+```
+
+Se o seu IdP usa um claim não-padrão, defina `auth-oidc.name-claims` (lista
+separada por vírgula). Por exemplo, o AWS Cognito emite `cognito:username` em
+vez do `preferred_username` padrão:
+
+```bash
+docker compose run --rm web sentry config set auth-oidc.name-claims "name,cognito:username,email"
 ```
 
 ### 4. Habilitar o SSO na organização
@@ -176,11 +194,11 @@ python -m twine check dist/*
 
 ## Release
 
-A versão fica em `pyproject.toml`. Para publicar a `0.1.0`:
+A versão fica em `pyproject.toml`. Para publicar a `0.1.1`:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 A tag dispara o workflow `release.yml`, que valida que a tag bate com a versão,

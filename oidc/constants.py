@@ -31,6 +31,24 @@ def get_issuer() -> str:
     return options.get("auth-oidc.issuer")
 
 
+# Ordered list of id_token claims tried when building the user's display
+# name -- the first present, non-empty claim wins, with email as the final
+# fallback. Defaults to standard OIDC claims. Override via the
+# `auth-oidc.name-claims` option (comma-separated) if your IdP uses a
+# non-standard claim. AWS Cognito, for example, emits `cognito:username`
+# instead of the standard `preferred_username`:
+#   sentry config set auth-oidc.name-claims "name,cognito:username,email"
+DEFAULT_NAME_CLAIMS = ["name", "preferred_username", "email"]
+
+
+def get_name_claims() -> list[str]:
+    raw = options.get("auth-oidc.name-claims")
+    if not raw:
+        return list(DEFAULT_NAME_CLAIMS)
+    claims = [c.strip() for c in raw.split(",")]
+    return [c for c in claims if c] or list(DEFAULT_NAME_CLAIMS)
+
+
 # Human-readable provider name shown in the Sentry SSO UI.
 PROVIDER_NAME = "OIDC"
 

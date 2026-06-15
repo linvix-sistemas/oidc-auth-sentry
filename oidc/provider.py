@@ -14,6 +14,7 @@ from .constants import (
     SCOPE,
     get_access_token_url,
     get_authorize_url,
+    get_name_claims,
 )
 from .views import FetchUser
 
@@ -87,14 +88,15 @@ class OIDCProvider(OAuth2Provider):
         return {"domains": self.domains or [], "version": DATA_VERSION}
 
     def build_identity(self, state: Mapping[str, Any]) -> Mapping[str, Any]:
-        # Cognito id_token claims look like:
+        # A typical OIDC id_token carries standard claims (Cognito shown as an
+        # example -- it adds the non-standard `cognito:username`):
         #   {
         #     "sub": "a1b2c3d4-...",          # stable, unique user id
-        #     "iss": "https://cognito-idp.<region>.amazonaws.com/<pool>",
+        #     "iss": "https://<issuer>",
         #     "aud": "<app client id>",
         #     "email": "user@example.com",
         #     "email_verified": true,
-        #     "cognito:username": "...",
+        #     "preferred_username": "...",    # standard OIDC username claim
         #     "name": "Full Name",            # present if the attribute is set
         #     ...
         #   }
@@ -105,9 +107,12 @@ class OIDCProvider(OAuth2Provider):
         # keeping email as the legacy id so existing accounts are matched.
         user_id = MigratingIdentityId(id=user_data["sub"], legacy_id=user_data["email"])
 
-        # Prefer a real display name; fall back to email if the IdP doesn't
-        # send one.
-        name = user_data.get("name") or user_data.get("cognito:username") or user_data["email"]
+        # Prefer a real display name, walking the configured claim chain and
+        # falling back to email if the IdP sends none of them.
+        name = next(
+            (user_data[claim] for claim in get_name_claims() if user_data.get(claim)),
+            user_data["email"],
+        )
 
         return {
             "id": user_id,

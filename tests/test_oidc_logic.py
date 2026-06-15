@@ -24,6 +24,18 @@ CLIENT = "7exampleclientid"
 ISSUER = f"https://cognito-idp.{REGION}.amazonaws.com/{POOL}"
 
 
+DEFAULT_NAME_CLAIMS = ["name", "preferred_username", "email"]
+
+
+def resolve_name(user_data: dict, claims: list[str]) -> str:
+    # Mirrors OIDCProvider.build_identity: first present, non-empty claim
+    # wins, with email as the final fallback.
+    return next(
+        (user_data[claim] for claim in claims if user_data.get(claim)),
+        user_data["email"],
+    )
+
+
 def make_id_token(**overrides) -> str:
     payload = {
         "sub": "a1b2c3d4-1111-2222-3333-444455556666",
@@ -31,7 +43,7 @@ def make_id_token(**overrides) -> str:
         "aud": CLIENT,
         "email": "user@example.com",
         "email_verified": True,
-        "cognito:username": "username",
+        "preferred_username": "username",
         "name": "Full Name",
     }
     payload.update(overrides)
@@ -58,14 +70,23 @@ def test_audience_as_list():
 
 
 def test_name_fallback_chain():
-    # name present
+    # name present -> wins
     p = decode_payload(make_id_token())
-    name = p.get("name") or p.get("cognito:username") or p["email"]
-    assert name == "Full Name"
-    # name absent -> cognito:username
+    assert resolve_name(p, DEFAULT_NAME_CLAIMS) == "Full Name"
+    # name absent -> standard preferred_username
     p = decode_payload(make_id_token(name=None))
-    name = p.get("name") or p.get("cognito:username") or p["email"]
-    assert name == "username"
+    assert resolve_name(p, DEFAULT_NAME_CLAIMS) == "username"
+    # no name claims at all -> email
+    p = decode_payload(make_id_token(name=None, preferred_username=None))
+    assert resolve_name(p, DEFAULT_NAME_CLAIMS) == "user@example.com"
+
+
+def test_name_claims_override():
+    # An operator whose IdP uses a non-standard claim (e.g. Cognito's
+    # `cognito:username`) configures auth-oidc.name-claims accordingly.
+    claims = ["name", "cognito:username", "email"]
+    p = decode_payload(make_id_token(name=None, **{"cognito:username": "cog-user"}))
+    assert resolve_name(p, claims) == "cog-user"
 
 
 def test_issuer_mismatch_detectable():
