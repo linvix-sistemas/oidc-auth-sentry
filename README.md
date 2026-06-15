@@ -46,8 +46,8 @@ Os valores que você vai usar:
 | --------------- | ------------------------------------------- | -------------------------------------------------------------- |
 | `client-id`     | App client                                  | `7exampleabc123`                                               |
 | `client-secret` | App client                                  | `abcd...`                                                      |
-| `authorize-url` | Domínio Hosted UI + `/oauth2/authorize`     | `https://id.linvix.com/oauth2/authorize`                       |
-| `token-url`     | Domínio Hosted UI + `/oauth2/token`         | `https://id.linvix.com/oauth2/token`                           |
+| `authorize-url` | Domínio Hosted UI + `/oauth2/authorize`     | `https://id.example.com/oauth2/authorize`                       |
+| `token-url`     | Domínio Hosted UI + `/oauth2/token`         | `https://id.example.com/oauth2/token`                           |
 | `issuer`        | `cognito-idp.<regiao>.amazonaws.com/<pool>` | `https://cognito-idp.us-east-1.amazonaws.com/us-east-1_ABC123` |
 
 > Dica: confira o discovery em
@@ -87,8 +87,8 @@ Adicione as cinco opções `auth-oidc.*`. Há duas formas equivalentes.
 ```yaml
 auth-oidc.client-id: "7exampleabc123"
 auth-oidc.client-secret: "SEU_CLIENT_SECRET"
-auth-oidc.authorize-url: "https://id.linvix.com/oauth2/authorize"
-auth-oidc.token-url: "https://id.linvix.com/oauth2/token"
+auth-oidc.authorize-url: "https://id.example.com/oauth2/authorize"
+auth-oidc.token-url: "https://id.example.com/oauth2/token"
 auth-oidc.issuer: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_ABC123"
 ```
 
@@ -100,8 +100,8 @@ aplicar.
 ```bash
 docker compose run --rm web sentry config set auth-oidc.client-id "7exampleabc123"
 docker compose run --rm web sentry config set auth-oidc.client-secret "SEU_CLIENT_SECRET"
-docker compose run --rm web sentry config set auth-oidc.authorize-url "https://id.linvix.com/oauth2/authorize"
-docker compose run --rm web sentry config set auth-oidc.token-url "https://id.linvix.com/oauth2/token"
+docker compose run --rm web sentry config set auth-oidc.authorize-url "https://id.example.com/oauth2/authorize"
+docker compose run --rm web sentry config set auth-oidc.token-url "https://id.example.com/oauth2/token"
 docker compose run --rm web sentry config set auth-oidc.issuer "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_ABC123"
 ```
 

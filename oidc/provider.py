@@ -92,7 +92,7 @@ class OIDCProvider(OAuth2Provider):
         #     "sub": "a1b2c3d4-...",          # stable, unique user id
         #     "iss": "https://cognito-idp.<region>.amazonaws.com/<pool>",
         #     "aud": "<app client id>",
-        #     "email": "user@linvix.com",
+        #     "email": "user@example.com",
         #     "email_verified": true,
         #     "cognito:username": "...",
         #     "name": "Full Name",            # present if the attribute is set

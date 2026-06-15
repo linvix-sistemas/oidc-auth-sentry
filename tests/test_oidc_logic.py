@@ -29,10 +29,10 @@ def make_id_token(**overrides) -> str:
         "sub": "a1b2c3d4-1111-2222-3333-444455556666",
         "iss": ISSUER,
         "aud": CLIENT,
-        "email": "cristiano@linvix.com",
+        "email": "user@example.com",
         "email_verified": True,
-        "cognito:username": "cristiano",
-        "name": "Cristiano",
+        "cognito:username": "username",
+        "name": "Full Name",
     }
     payload.update(overrides)
     sig = base64.urlsafe_b64encode(b"sig").rstrip(b"=").decode()
@@ -49,7 +49,7 @@ def test_valid_token_decodes():
     assert p["iss"] == ISSUER
     aud = p["aud"]
     assert CLIENT in (aud if isinstance(aud, list) else [aud])
-    assert p["email"] == "cristiano@linvix.com"
+    assert p["email"] == "user@example.com"
 
 
 def test_audience_as_list():
@@ -61,11 +61,11 @@ def test_name_fallback_chain():
     # name present
     p = decode_payload(make_id_token())
     name = p.get("name") or p.get("cognito:username") or p["email"]
-    assert name == "Cristiano"
+    assert name == "Full Name"
     # name absent -> cognito:username
     p = decode_payload(make_id_token(name=None))
     name = p.get("name") or p.get("cognito:username") or p["email"]
-    assert name == "cristiano"
+    assert name == "username"
 
 
 def test_issuer_mismatch_detectable():
