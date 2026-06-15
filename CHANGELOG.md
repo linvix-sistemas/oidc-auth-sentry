@@ -3,6 +3,14 @@
 All notable changes to this project are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] - 2026-06-15
+### Fixed
+- Register the `auth-oidc.*` options with Sentry's option manager in
+  `AppConfig.ready()`. Without registration, reading any of them raised
+  `UnknownOption` (HTTP 500 when configuring the provider) and produced
+  "Unknown config option found" warnings at boot. Mirrors the built-in Google
+  provider's approach.
+
 ## [0.1.1] - 2026-06-15
 ### Added
 - Configurable display-name claim chain via the `auth-oidc.name-claims` option

@@ -61,7 +61,7 @@ No seu checkout do `getsentry/self-hosted`, adicione o pacote em
 `sentry/requirements.txt`:
 
 ```
-oidc-auth-sentry==0.1.1
+oidc-auth-sentry==0.1.2
 ```
 
 Se o pacote estiver num índice privado (ex.: AWS CodeArtifact), exporte as
@@ -194,11 +194,11 @@ python -m twine check dist/*
 
 ## Release
 
-A versão fica em `pyproject.toml`. Para publicar a `0.1.1`:
+A versão fica em `pyproject.toml`. Para publicar a `0.1.2`:
 
 ```bash
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.2
+git push origin v0.1.2
 ```
 
 A tag dispara o workflow `release.yml`, que valida que a tag bate com a versão,
