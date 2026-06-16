@@ -61,7 +61,7 @@ No seu checkout do `getsentry/self-hosted`, adicione o pacote em
 `sentry/requirements.txt`:
 
 ```
-oidc-auth-sentry==0.1.2
+oidc-auth-sentry==0.2.0
 ```
 
 Se o pacote estiver num índice privado (ex.: AWS CodeArtifact), exporte as
@@ -122,6 +122,49 @@ vez do `preferred_username` padrão:
 ```bash
 docker compose run --rm web sentry config set auth-oidc.name-claims "name,cognito:username,email"
 ```
+
+#### Opcional — nome do provedor (rebrand)
+
+O rótulo exibido na UI de SSO é `OIDC` por padrão. Para personalizar (ex.:
+`Custom SSO`), defina `auth-oidc.provider-name`:
+
+```bash
+docker compose run --rm web sentry config set auth-oidc.provider-name "Custom SSO"
+```
+
+> O nome é resolvido no boot do container; após alterar, reinicie/reaplique
+> para que a UI mostre o novo rótulo.
+
+#### Opcional — restrição por domínio de email
+
+Por padrão **qualquer domínio é aceito**. Para permitir apenas domínios
+específicos, defina `auth-oidc.allowed-domains` (lista separada por vírgula). O
+domínio é extraído do email do `id_token` (a parte após o `@`); quem não bater
+é recusado no login:
+
+```bash
+docker compose run --rm web sentry config set auth-oidc.allowed-domains "example.com,example.org"
+```
+
+#### Opcional — restrição por grupos
+
+Por padrão **qualquer grupo (ou nenhum) é aceito**. Para limitar o acesso a
+membros de grupos específicos, defina duas opções:
+
+- `auth-oidc.groups-claim` — o claim do `id_token` que carrega os grupos.
+  Padrão: `groups` (claim OIDC padrão). No AWS Cognito é `cognito:groups`.
+- `auth-oidc.allowed-groups` — lista separada por vírgula de grupos liberados.
+  O usuário precisa pertencer a **pelo menos um** deles.
+
+```bash
+docker compose run --rm web sentry config set auth-oidc.groups-claim "cognito:groups"
+docker compose run --rm web sentry config set auth-oidc.allowed-groups "sentry-admins,sentry-users"
+```
+
+> O IdP precisa incluir os grupos no `id_token`. O Cognito injeta
+> `cognito:groups` automaticamente para usuários que pertencem a algum grupo do
+> User Pool. Se `auth-oidc.allowed-groups` ficar vazio, nenhuma checagem de
+> grupo é feita.
 
 ### 4. Habilitar o SSO na organização
 
@@ -194,11 +237,11 @@ python -m twine check dist/*
 
 ## Release
 
-A versão fica em `pyproject.toml`. Para publicar a `0.1.2`:
+A versão fica em `pyproject.toml`. Para publicar a `0.2.0`:
 
 ```bash
-git tag v0.1.2
-git push origin v0.1.2
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 A tag dispara o workflow `release.yml`, que valida que a tag bate com a versão,

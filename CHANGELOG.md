@@ -3,6 +3,23 @@
 All notable changes to this project are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-06-16
+### Added
+- Customizable provider display name via the `auth-oidc.provider-name` option
+  (default `OIDC`), e.g. to rebrand the SSO label to `Custom SSO`.
+- Optional access control by group membership via `auth-oidc.groups-claim`
+  (default `groups`; Cognito uses `cognito:groups`) and `auth-oidc.allowed-groups`
+  (comma-separated; empty = no restriction).
+- Optional access control by email domain via `auth-oidc.allowed-domains`
+  (comma-separated; empty = no restriction). Exposes configuration for the
+  previously inert domain-restriction logic.
+
+### Changed
+- Access control (domains) now reads from options at login time instead of the
+  unused per-provider `domain`/`domains` config. Removed the orphaned
+  `__init__` plumbing from the provider; `build_config` persists only the data
+  version marker.
+
 ## [0.1.2] - 2026-06-15
 ### Fixed
 - Register the `auth-oidc.*` options with Sentry's option manager in

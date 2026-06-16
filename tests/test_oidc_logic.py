@@ -36,6 +36,27 @@ def resolve_name(user_data: dict, claims: list[str]) -> str:
     )
 
 
+def split_csv(raw):
+    # Mirrors constants.split_csv.
+    if not raw:
+        return []
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def normalize_groups(raw):
+    # Mirrors views.normalize_groups.
+    if isinstance(raw, str):
+        return {raw}
+    if isinstance(raw, (list, tuple, set)):
+        return {str(item) for item in raw}
+    return set()
+
+
+def extract_domain(email: str) -> str:
+    # Mirrors views.extract_domain.
+    return email.rsplit("@", 1)[-1]
+
+
 def make_id_token(**overrides) -> str:
     payload = {
         "sub": "a1b2c3d4-1111-2222-3333-444455556666",
@@ -87,6 +108,40 @@ def test_name_claims_override():
     claims = ["name", "cognito:username", "email"]
     p = decode_payload(make_id_token(name=None, **{"cognito:username": "cog-user"}))
     assert resolve_name(p, claims) == "cog-user"
+
+
+def test_split_csv_parsing():
+    assert split_csv(None) == []
+    assert split_csv("") == []
+    assert split_csv("  ") == []
+    assert split_csv("a, b ,,c") == ["a", "b", "c"]
+    assert split_csv("example.com") == ["example.com"]
+
+
+def test_normalize_groups_shapes():
+    # Standard / Cognito list claim.
+    assert normalize_groups(["admins", "users"]) == {"admins", "users"}
+    # Single string claim.
+    assert normalize_groups("admins") == {"admins"}
+    # Missing/odd claim -> empty.
+    assert normalize_groups(None) == set()
+    assert normalize_groups(123) == set()
+
+
+def test_group_access_decision():
+    allowed = split_csv("sentry-admins, sentry-users")
+    # Member of an allowed group -> permitted.
+    assert normalize_groups(["sentry-users", "other"]).intersection(allowed)
+    # No overlap -> denied.
+    assert not normalize_groups(["random"]).intersection(allowed)
+    # Empty allow-list -> no restriction (caller skips the check entirely).
+    assert split_csv("") == []
+
+
+def test_domain_access_decision():
+    allowed = split_csv("example.com, example.org")
+    assert extract_domain("user@example.com") in allowed
+    assert extract_domain("user@evil.com") not in allowed
 
 
 def test_issuer_mismatch_detectable():

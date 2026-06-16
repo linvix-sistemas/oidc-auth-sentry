@@ -15,6 +15,10 @@ from .constants import (
     ERR_INVALID_DOMAIN,
     ERR_INVALID_ISSUER,
     ERR_INVALID_RESPONSE,
+    ERR_NOT_IN_GROUP,
+    get_allowed_domains,
+    get_allowed_groups,
+    get_groups_claim,
     get_issuer,
 )
 
@@ -34,19 +38,18 @@ class FetchUser(AuthView):
         restriction, if any, is derived from the email address.
       * We validate the `iss` (issuer) and `aud` (audience/client_id) claims,
         which OIDC requires and Google's implementation skipped.
+      * Optional access control by email domain and/or group membership, read
+        from the `auth-oidc.allowed-domains` / `auth-oidc.allowed-groups`
+        options (empty = no restriction).
     """
 
     def __init__(
         self,
         client_id: str,
-        domains: list[str] | None,
-        version: str | None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
         self.client_id = client_id
-        self.domains = domains
-        self.version = version
         super().__init__(*args, **kwargs)
 
     def dispatch(self, request: HttpRequest, pipeline: AuthHelper) -> HttpResponseBase:
@@ -95,11 +98,23 @@ class FetchUser(AuthView):
             return pipeline.error(ERR_INVALID_RESPONSE)
 
         # Optional restriction by email domain. Unlike Google we have no `hd`
-        # claim, so we derive the domain from the email address itself.
-        if self.domains:
+        # claim, so we derive the domain from the email address itself. Empty
+        # allow-list -> no restriction.
+        allowed_domains = get_allowed_domains()
+        if allowed_domains:
             domain = extract_domain(payload["email"])
-            if domain not in self.domains:
+            if domain not in allowed_domains:
+                logger.error("Email domain not allowed: %s", domain)
                 return pipeline.error(ERR_INVALID_DOMAIN % (domain,))
+
+        # Optional restriction by group membership. Empty allow-list -> no
+        # restriction. The user must belong to at least one allowed group.
+        allowed_groups = get_allowed_groups()
+        if allowed_groups:
+            user_groups = normalize_groups(payload.get(get_groups_claim()))
+            if not user_groups.intersection(allowed_groups):
+                logger.error("User groups %s not in allowed set", sorted(user_groups))
+                return pipeline.error(ERR_NOT_IN_GROUP)
 
         pipeline.bind_state("user", payload)
 
@@ -108,3 +123,13 @@ class FetchUser(AuthView):
 
 def extract_domain(email: str) -> str:
     return email.rsplit("@", 1)[-1]
+
+
+def normalize_groups(raw: Any) -> set[str]:
+    # Group claims may arrive as a list (standard / Cognito's `cognito:groups`)
+    # or a single string. Anything else (missing claim, null) -> no groups.
+    if isinstance(raw, str):
+        return {raw}
+    if isinstance(raw, (list, tuple, set)):
+        return {str(item) for item in raw}
+    return set()

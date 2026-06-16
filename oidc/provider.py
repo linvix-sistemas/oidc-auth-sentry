@@ -22,8 +22,7 @@ from .views import FetchUser
 class OIDCLogin(OAuth2Login):
     scope = SCOPE
 
-    def __init__(self, client_id: str, domains: list[str] | None = None) -> None:
-        self.domains = domains
+    def __init__(self, client_id: str) -> None:
         super().__init__(authorize_url=get_authorize_url(), client_id=client_id, scope=SCOPE)
 
     def get_authorize_params(self, state: str, redirect_uri: str) -> dict[str, str | None]:
@@ -38,25 +37,15 @@ class OIDCLogin(OAuth2Login):
 
 
 class OIDCProvider(OAuth2Provider):
+    # `name` is the human-readable label; it is (re)assigned at boot from the
+    # `auth-oidc.provider-name` option in apps.py. This is the default fallback.
     name = PROVIDER_NAME
     key = "oidc"
 
-    def __init__(
-        self,
-        domain: str | None = None,
-        domains: list[str] | None = None,
-        version: str | None = None,
-        **config: Any,
-    ) -> None:
-        if domain:
-            if domains:
-                domains.append(domain)
-            else:
-                domains = [domain]
-        self.domains = domains
-        version = DATA_VERSION if domains is None else None
-        self.version = version
-        super().__init__(**config)
+    # No custom __init__: access control (domains/groups) is read from options
+    # at login time in views.py, so the provider needs no per-instance config.
+    # Any extra keys from previously persisted configs land harmlessly in
+    # `self.config` via the base OAuth2Provider.
 
     def get_client_id(self) -> str:
         return options.get("auth-oidc.client-id")
@@ -66,26 +55,22 @@ class OIDCProvider(OAuth2Provider):
 
     def get_auth_pipeline(self) -> list[AuthView]:
         return [
-            OIDCLogin(domains=self.domains, client_id=self.get_client_id()),
+            OIDCLogin(client_id=self.get_client_id()),
             OAuth2Callback(
                 access_token_url=get_access_token_url(),
                 client_id=self.get_client_id(),
                 client_secret=self.get_client_secret(),
             ),
-            FetchUser(
-                client_id=self.get_client_id(),
-                domains=self.domains,
-                version=self.version,
-            ),
+            FetchUser(client_id=self.get_client_id()),
         ]
 
     def get_refresh_token_url(self) -> str:
         return get_access_token_url()
 
     def build_config(self, state: Mapping[str, Any]) -> dict[str, Any]:
-        # `state` won't carry a Google-style `domain`; persist whatever domain
-        # restriction (if any) was configured on this provider.
-        return {"domains": self.domains or [], "version": DATA_VERSION}
+        # Access control lives in options, not in per-provider state; persist
+        # only the data version marker.
+        return {"version": DATA_VERSION}
 
     def build_identity(self, state: Mapping[str, Any]) -> Mapping[str, Any]:
         # A typical OIDC id_token carries standard claims (Cognito shown as an
