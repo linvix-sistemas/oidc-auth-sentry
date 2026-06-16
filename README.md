@@ -80,7 +80,8 @@ Em seguida rode o instalador, que reconstrói e reinicia os containers:
 
 ### 3. Configurar as opções do Sentry
 
-Adicione as cinco opções `auth-oidc.*`. Há duas formas equivalentes.
+Adicione as cinco opções obrigatórias `auth-oidc.*` (as opcionais ficam logo
+abaixo). Há duas formas equivalentes.
 
 **Opção A — `sentry/config.yml`:**
 
@@ -105,72 +106,39 @@ docker compose run --rm web sentry config set auth-oidc.token-url "https://id.ex
 docker compose run --rm web sentry config set auth-oidc.issuer "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_ABC123"
 ```
 
-#### Opcional — claims do nome de exibição
+#### Opções opcionais
 
-O nome de exibição do usuário é resolvido a partir de uma lista ordenada de
-claims do `id_token` — o primeiro presente e não-vazio vence, com o `email`
-como fallback final. O padrão segue os claims OIDC padrão:
+Todas têm default seguro — configure só as que precisar. Listas são separadas
+por vírgula; **vazio = sem restrição**.
 
-```
-name,preferred_username,email
-```
+| Opção                       | Default                         | Função                                                                                     |
+| --------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------ |
+| `auth-oidc.provider-name`   | `OIDC`                          | Rótulo exibido na UI de SSO (rebrand). Resolvido no boot — reinicie após alterar.          |
+| `auth-oidc.name-claims`     | `name,preferred_username,email` | Claims (em ordem) para o nome de exibição; o primeiro não-vazio vence, `email` é fallback. |
+| `auth-oidc.allowed-domains` | _(vazio = todos)_               | Domínios de e-mail liberados (extraídos da parte após o `@`).                              |
+| `auth-oidc.groups-claim`    | `groups`                        | Claim do `id_token` que carrega os grupos do usuário.                                      |
+| `auth-oidc.allowed-groups`  | _(vazio = todos)_               | Grupos liberados; o usuário precisa pertencer a pelo menos um.                             |
 
-Se o seu IdP usa um claim não-padrão, defina `auth-oidc.name-claims` (lista
-separada por vírgula). Por exemplo, o AWS Cognito emite `cognito:username` em
-vez do `preferred_username` padrão:
-
-```bash
-docker compose run --rm web sentry config set auth-oidc.name-claims "name,cognito:username,email"
-```
-
-#### Opcional — nome do provedor (rebrand)
-
-O rótulo exibido na UI de SSO é `OIDC` por padrão. Para personalizar (ex.:
-`Custom SSO`), defina `auth-oidc.provider-name`:
+Exemplos típicos no AWS Cognito (que usa claims não-padrão):
 
 ```bash
 docker compose run --rm web sentry config set auth-oidc.provider-name "Custom SSO"
-```
-
-> O nome é resolvido no boot do container; após alterar, reinicie/reaplique
-> para que a UI mostre o novo rótulo.
-
-#### Opcional — restrição por domínio de email
-
-Por padrão **qualquer domínio é aceito**. Para permitir apenas domínios
-específicos, defina `auth-oidc.allowed-domains` (lista separada por vírgula). O
-domínio é extraído do email do `id_token` (a parte após o `@`); quem não bater
-é recusado no login:
-
-```bash
+docker compose run --rm web sentry config set auth-oidc.name-claims "name,cognito:username,email"
 docker compose run --rm web sentry config set auth-oidc.allowed-domains "example.com,example.org"
-```
-
-#### Opcional — restrição por grupos
-
-Por padrão **qualquer grupo (ou nenhum) é aceito**. Para limitar o acesso a
-membros de grupos específicos, defina duas opções:
-
-- `auth-oidc.groups-claim` — o claim do `id_token` que carrega os grupos.
-  Padrão: `groups` (claim OIDC padrão). No AWS Cognito é `cognito:groups`.
-- `auth-oidc.allowed-groups` — lista separada por vírgula de grupos liberados.
-  O usuário precisa pertencer a **pelo menos um** deles.
-
-```bash
 docker compose run --rm web sentry config set auth-oidc.groups-claim "cognito:groups"
 docker compose run --rm web sentry config set auth-oidc.allowed-groups "sentry-admins,sentry-users"
 ```
 
-> O IdP precisa incluir os grupos no `id_token`. O Cognito injeta
-> `cognito:groups` automaticamente para usuários que pertencem a algum grupo do
-> User Pool. Se `auth-oidc.allowed-groups` ficar vazio, nenhuma checagem de
-> grupo é feita.
+> Para restringir por grupos, o IdP precisa incluí-los no `id_token`. O Cognito
+> injeta `cognito:groups` automaticamente para usuários que pertencem a algum
+> grupo do User Pool.
 
 ### 4. Habilitar o SSO na organização
 
 1. Faça login no Sentry como **owner** da organização.
 2. Vá em **Settings → Auth** (Settings da organização).
-3. O provedor **OIDC** deve aparecer na lista. Clique para configurar.
+3. O provedor **OIDC** (ou o nome definido em `auth-oidc.provider-name`) deve
+   aparecer na lista. Clique para configurar.
 4. Conclua o fluxo de login com uma conta do seu User Pool para vincular o SSO.
 5. Opcionalmente, **exija SSO** para toda a organização.
 
@@ -191,31 +159,33 @@ docker compose run --rm web sentry config set auth-oidc.allowed-groups "sentry-a
 
 O provedor lê os seguintes claims do `id_token`:
 
-| Claim                                 | Uso no Sentry                                                |
-| ------------------------------------- | ------------------------------------------------------------ |
-| `sub`                                 | id estável e único do usuário                                |
-| `email`                               | e-mail (e id legado, para casar contas já existentes)        |
-| `name` → `cognito:username` → `email` | nome de exibição (nessa ordem de fallback)                   |
-| `email_verified`                      | repassado ao Sentry                                          |
-| `iss`, `aud`                          | validados (devem casar com `auth-oidc.issuer` e o client id) |
+| Claim                                   | Uso no Sentry                                                              |
+| --------------------------------------- | -------------------------------------------------------------------------- |
+| `sub`                                   | id estável e único do usuário                                              |
+| `email`                                 | e-mail (e id legado, para casar contas já existentes)                      |
+| `name` → `preferred_username` → `email` | nome de exibição (ordem de fallback; ajustável em `auth-oidc.name-claims`) |
+| `email_verified`                        | repassado ao Sentry                                                        |
+| `iss`, `aud`                            | validados (devem casar com `auth-oidc.issuer` e o client id)               |
 
-### Restrição opcional por domínio de e-mail
+### Controle de acesso (domínio e grupos)
 
-Diferente do provedor Google, não usamos o claim `hd`. Se quiser limitar o
-acesso a um domínio, isso é derivado do e-mail. (Configurável no provider;
-por padrão nenhum domínio é exigido.)
+O acesso pode ser
+restrito por domínio de e-mail e/ou por grupos via as opções
+`auth-oidc.allowed-domains` e `auth-oidc.allowed-groups` (veja
+[Opções opcionais](#opções-opcionais)). Por padrão, **sem restrição**.
 
 ---
 
 ## Solução de problemas
 
-| Sintoma                                 | Causa provável                                                                                       |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `redirect_uri mismatch` no Cognito      | A callback URL no app client precisa ser exatamente `https://SEU-SENTRY/auth/sso/` (com barra final) |
-| `id_token issuer mismatch`              | `auth-oidc.issuer` não bate com o `iss` do token — confira região e User Pool ID                     |
-| `id_token audience mismatch`            | `auth-oidc.client-id` diferente do app client que gerou o token                                      |
-| Provedor não aparece em Settings → Auth | Pacote não instalado / `./install.sh` não rodou após adicionar ao requirements                       |
-| `Unable to fetch user information`      | Faltou o scope `openid`/`email`, ou o app client não permite o grant `authorization_code`            |
+| Sintoma                                 | Causa provável                                                                                               |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `redirect_uri mismatch` no Cognito      | A callback URL no app client precisa ser exatamente `https://SEU-SENTRY/auth/sso/` (com barra final)         |
+| `id_token issuer mismatch`              | `auth-oidc.issuer` não bate com o `iss` do token — confira região e User Pool ID                             |
+| `id_token audience mismatch`            | `auth-oidc.client-id` diferente do app client que gerou o token                                              |
+| Provedor não aparece em Settings → Auth | Pacote não instalado / `./install.sh` não rodou após adicionar ao requirements                               |
+| `Unable to fetch user information`      | Faltou o scope `openid`/`email`, ou o app client não permite o grant `authorization_code`                    |
+| Login recusado por domínio/grupo        | `auth-oidc.allowed-domains`/`allowed-groups` não batem; confira o `groups-claim` (Cognito: `cognito:groups`) |
 
 ---
 
