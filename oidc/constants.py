@@ -86,6 +86,7 @@ def get_allowed_groups() -> list[str]:
 def get_allowed_domains() -> list[str]:
     return split_csv(options.get("auth-oidc.allowed-domains"))
 
+
 # OIDC requires the `openid` scope; `email`/`profile` give us identity claims.
 SCOPE = "openid email profile"
 

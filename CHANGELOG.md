@@ -3,6 +3,17 @@
 All notable changes to this project are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-06-16
+### Fixed
+- Documentation: corrected the identity-mapping table (display-name fallback is
+  `name → preferred_username → email`) and removed stale text describing the
+  old, inert domain-restriction behavior.
+- CI: fixed `ruff format` violation in `oidc/constants.py` (missing blank line).
+
+### Changed
+- Documentation: consolidated the optional `auth-oidc.*` settings into a single
+  reference table and added a troubleshooting row for domain/group denials.
+
 ## [0.2.0] - 2026-06-16
 ### Added
 - Customizable provider display name via the `auth-oidc.provider-name` option
